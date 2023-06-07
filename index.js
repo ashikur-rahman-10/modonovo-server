@@ -30,6 +30,21 @@ async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
         client.connect();
+
+
+        const usersCollections = client.db("modonovoDB").collection("users");
+
+        app.post('/users', async (req, res) => {
+            const user = req.body;
+            const query = { email: user.email }
+            const existingUser = await usersCollections.findOne(query)
+            if (existingUser) {
+                return res.send({ message: "user already exist" })
+            }
+            const result = await usersCollections.insertOne(user);
+            res.send(result)
+        })
+
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
