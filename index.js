@@ -172,13 +172,25 @@ async function run() {
             res.send(result)
         })
 
-        // chande class status to approved
-        app.patch('/classes/status/:id', VerifyJwt, VerifyAdmin, async (req, res) => {
+        // change class status to approved
+        app.patch('/classes/status/approved/:id', VerifyJwt, VerifyAdmin, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
             const updatedDoc = {
                 $set: {
                     status: "Approved"
+                }
+            }
+            const result = await classesCollections.updateOne(query, updatedDoc)
+            res.send(result)
+        })
+        // change class status to Denny
+        app.patch('/classes/status/denied/:id', VerifyJwt, VerifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const updatedDoc = {
+                $set: {
+                    status: "Denied"
                 }
             }
             const result = await classesCollections.updateOne(query, updatedDoc)
