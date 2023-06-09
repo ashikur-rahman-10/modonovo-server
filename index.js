@@ -51,6 +51,7 @@ async function run() {
 
         const usersCollections = client.db("modonovoDB").collection("users");
         const classesCollections = client.db("modonovoDB").collection("classes");
+        const cartCollections = client.db("modonovoDB").collection("carts");
 
         // JWT
         app.post('/jwt', async (req, res) => {
@@ -95,8 +96,14 @@ async function run() {
         })
 
         // Get All Users
-        app.get('/users', VerifyJwt, VerifyAdmin, async (req, res) => {
+        app.get('/users', async (req, res) => {
             const result = await usersCollections.find().toArray()
+            res.send(result)
+        })
+        // Get All Instructors
+        app.get('/users/instructors', async (req, res) => {
+            const filter = { role: "Instructor" }
+            const result = await usersCollections.find(filter).toArray()
             res.send(result)
         })
 
@@ -194,6 +201,21 @@ async function run() {
                 }
             }
             const result = await classesCollections.updateOne(query, updatedDoc)
+            res.send(result)
+        })
+
+        // Saved Class 
+        app.post('/carts', VerifyJwt, async (req, res) => {
+            const cartItem = req.body;
+            const result = await cartCollections.insertOne(cartItem)
+            res.send(result)
+        })
+
+        app.get('/carts/:email', VerifyJwt, async (req, res) => {
+            const email = req.params.email;
+            const filter = { email: email }
+            const result = await cartCollections.find(filter).toArray()
+            console.log(email);
             res.send(result)
         })
 
