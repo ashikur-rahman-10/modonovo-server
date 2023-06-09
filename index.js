@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config()
 const jwt = require('jsonwebtoken');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express()
 
 const port = process.env.PORT || 5000;
@@ -31,6 +31,23 @@ const VerifyJwt = (req, res, next) => {
     })
 }
 
+// const VerifyJWT = (req, res, next) => {
+//     const authorization = req.headers.authorization;
+//     if (!authorization) {
+//         return res.status(401).send({ error: true, message: 'unauthorized access' });
+//     }
+
+//     const token = authorization.split(' ')[1];
+
+//     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+//         if (err) {
+//             return res.status(401).send({ error: true, message: 'unauthorized access' })
+//         }
+//         req.decoded = decoded;
+//         next();
+//     })
+// }
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.a46jnic.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -51,7 +68,6 @@ async function run() {
         const usersCollections = client.db("modonovoDB").collection("users");
 
         // JWT
-
         app.post('/jwt', async (req, res) => {
             const user = req.body;
             const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '1h' })
@@ -76,12 +92,71 @@ async function run() {
             res.send(result)
         })
 
+
+        // Admin APIs
+
+        // Make User into Admin
+        app.patch('/users/admin/:id', VerifyJwt, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const updatedDoc = {
+                $set: {
+                    role: "Admin"
+                }
+            }
+            const result = await usersCollections.updateOne(query, updatedDoc)
+            res.send(result)
+        })
+        // Convert User into instructors 
+        app.patch('/users/instructors/:id', VerifyJwt, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const updatedDoc = {
+                $set: {
+                    role: "Instructor"
+                }
+            }
+            const result = await usersCollections.updateOne(query, updatedDoc)
+            res.send(result)
+        })
+
+        // Get admin
+        app.get('/users/admin/:email', VerifyJwt, async (req, res) => {
+            const email = req?.params?.email
+            // console.log(email);
+
+            if (req.decoded.email !== email) {
+                res.send({ admin: false })
+            }
+
+            const query = { email: email }
+            const user = await usersCollections.findOne(query);
+            const result = { admin: user?.role === 'Admin' }
+            res.send({ result: result });
+        })
+        // Get Instructor
+        app.get('/users/instructors/:email', VerifyJwt, async (req, res) => {
+            const email = req?.params?.email
+
+
+            if (req.decoded.email !== email) {
+                res.send({ instructor: false })
+            }
+
+            const query = { email: email }
+            const user = await usersCollections.findOne(query);
+            const result = { instructor: user?.role === 'Instructor' }
+
+            res.send({ result: result });
+        })
+
+
+
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
-        // Ensures that the client will close when you finish/error
-        // await client.close();
+
     }
 }
 run().catch(console.dir);
