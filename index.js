@@ -50,6 +50,7 @@ async function run() {
 
 
         const usersCollections = client.db("modonovoDB").collection("users");
+        const classesCollections = client.db("modonovoDB").collection("classes");
 
         // JWT
         app.post('/jwt', async (req, res) => {
@@ -68,7 +69,16 @@ async function run() {
             }
 
             next()
-
+        }
+        // VerifyAdmin
+        const VerifyInstructor = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email: email }
+            const user = await usersCollections.findOne(query)
+            if (user.role !== "Instructor") {
+                return res.status(401).send({ error: true, message: 'Unauthorized access' });
+            }
+            next()
         }
 
 
@@ -85,7 +95,7 @@ async function run() {
         })
 
         // Get All Users
-        app.get('/users', VerifyJwt, async (req, res) => {
+        app.get('/users', VerifyJwt, VerifyAdmin, async (req, res) => {
             const result = await usersCollections.find().toArray()
             res.send(result)
         })
@@ -146,6 +156,14 @@ async function run() {
             const result = { instructor: user?.role === 'Instructor' }
 
             res.send({ result: result });
+        })
+
+        // Classes Api
+
+        app.post('/classes', VerifyJwt, VerifyInstructor, async (req, res) => {
+            const course = req.body;
+            const result = await classesCollections.insertOne(course)
+            res.send(result)
         })
 
 
