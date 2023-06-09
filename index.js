@@ -31,22 +31,6 @@ const VerifyJwt = (req, res, next) => {
     })
 }
 
-// const VerifyJWT = (req, res, next) => {
-//     const authorization = req.headers.authorization;
-//     if (!authorization) {
-//         return res.status(401).send({ error: true, message: 'unauthorized access' });
-//     }
-
-//     const token = authorization.split(' ')[1];
-
-//     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-//         if (err) {
-//             return res.status(401).send({ error: true, message: 'unauthorized access' })
-//         }
-//         req.decoded = decoded;
-//         next();
-//     })
-// }
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.a46jnic.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -74,6 +58,20 @@ async function run() {
             res.send({ token })
         })
 
+        // VerifyAdmin
+        const VerifyAdmin = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email: email }
+            const user = await usersCollections.findOne(query)
+            if (user.role !== "Admin") {
+                return res.status(401).send({ error: true, message: 'Unauthorized access' });
+            }
+
+            next()
+
+        }
+
+
         // Users Api
         app.post('/users', async (req, res) => {
             const user = req.body;
@@ -96,7 +94,7 @@ async function run() {
         // Admin APIs
 
         // Make User into Admin
-        app.patch('/users/admin/:id', VerifyJwt, async (req, res) => {
+        app.patch('/users/admin/:id', VerifyJwt, VerifyAdmin, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
             const updatedDoc = {
@@ -108,7 +106,7 @@ async function run() {
             res.send(result)
         })
         // Convert User into instructors 
-        app.patch('/users/instructors/:id', VerifyJwt, async (req, res) => {
+        app.patch('/users/instructors/:id', VerifyJwt, VerifyAdmin, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
             const updatedDoc = {
