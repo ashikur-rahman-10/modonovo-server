@@ -179,6 +179,41 @@ async function run() {
             res.send(result)
         })
 
+        app.get('/classes/:email', VerifyJwt, async (req, res) => {
+            const email = req.params.email;
+            const filter = { instructorEmail: email }
+            const result = await classesCollections.find(filter).toArray()
+            res.send(result)
+
+        })
+        // Get a single class
+        app.get('/instructors/classes/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) }
+            const result = await classesCollections.findOne(filter)
+            res.send(result)
+
+        })
+        // Update a single class
+        app.patch('/instructors/classes/:id', VerifyJwt, VerifyInstructor, async (req, res) => {
+            const id = req.params.id;
+            const updatedClass = req.body
+            console.log(updatedClass);
+            const filter = { _id: new ObjectId(id) }
+            const updateDoc = {
+                $set: {
+                    className: updatedClass.className,
+                    price: updatedClass.price,
+                    availableSeats: updatedClass.availableSeats,
+                    details: updatedClass.details
+                },
+            };
+            const result = await classesCollections.updateOne(filter, updateDoc)
+            res.send(result)
+        })
+
+
+
         // change class status to approved
         app.patch('/classes/status/approved/:id', VerifyJwt, VerifyAdmin, async (req, res) => {
             const id = req.params.id;
