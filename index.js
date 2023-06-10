@@ -212,6 +212,14 @@ async function run() {
             res.send(result)
         })
 
+        // Delete a single class
+        app.delete('/instructors/classes/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) }
+            const result = await classesCollections.deleteOne(filter)
+            res.send(result)
+        })
+
 
 
         // change class status to approved
