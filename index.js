@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config()
 const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const stripe = require("stripe")(process.env.SECRET_KEY);
 const app = express()
 
 const port = process.env.PORT || 5000;
@@ -52,6 +53,7 @@ async function run() {
         const usersCollections = client.db("modonovoDB").collection("users");
         const classesCollections = client.db("modonovoDB").collection("classes");
         const cartCollections = client.db("modonovoDB").collection("carts");
+        const paymentsCollections = client.db("modonovoDB").collection("payments");
 
         // JWT
         app.post('/jwt', async (req, res) => {
@@ -104,6 +106,14 @@ async function run() {
         app.get('/users/instructors', async (req, res) => {
             const filter = { role: "Instructor" }
             const result = await usersCollections.find(filter).toArray()
+            res.send(result)
+        })
+
+        // Get Single User
+        app.get('/users/:email', async (req, res) => {
+            const email = req.params.email;
+            const filter = { email: email }
+            const result = await usersCollections.findOne(filter)
             res.send(result)
         })
 
@@ -213,7 +223,7 @@ async function run() {
         })
 
         // Delete a single class
-        app.delete('/instructors/classes/:id', async (req, res) => {
+        app.delete('/instructors/classes/:id', VerifyJwt, VerifyInstructor, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) }
             const result = await classesCollections.deleteOne(filter)
@@ -253,14 +263,68 @@ async function run() {
             const result = await cartCollections.insertOne(cartItem)
             res.send(result)
         })
-
-        app.get('/carts/:email', VerifyJwt, async (req, res) => {
+        //get cart items
+        app.get('/carts/:email', async (req, res) => {
             const email = req.params.email;
             const filter = { email: email }
             const result = await cartCollections.find(filter).toArray()
-            console.log(email);
             res.send(result)
         })
+
+        //remove a class from cart
+        app.delete('/carts/saved/:id', VerifyJwt, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) }
+            const result = await cartCollections.deleteOne(filter)
+            res.send(result)
+        })
+        //get a class from cart
+        app.get('/carts/saved/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) }
+            const result = await cartCollections.findOne(filter)
+            res.send(result)
+        })
+
+        // Payment Related API
+        app.post('/create-payment-intent', VerifyJwt, async (req, res) => {
+            const { price } = req.body;
+            const amount = parseInt(price * 100);
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+            });
+
+            res.send({
+                clientSecret: paymentIntent.client_secret
+            })
+        })
+
+        app.post('/payments', VerifyJwt, async (req, res) => {
+            const payment = req.body
+            const insetResult = await paymentsCollections.insertOne(payment)
+            const orderId = payment.orderId
+            const orderQuery = { _id: new ObjectId(orderId) }
+            const deleteResult = await cartCollections.deleteOne(orderQuery)
+
+            const courseId = payment.courseId
+            const course = await classesCollections.findOne({ _id: new ObjectId(courseId) })
+            console.log(course);
+
+            const updateDoc = {
+                $set: {
+                    availableSeats: course.availableSeats - 1,
+                    enrolledStudent: course.enrolledStudent + 1
+                },
+            };
+
+            const editedResult = await classesCollections.updateOne({ _id: new ObjectId(courseId) }, updateDoc)
+
+
+            res.send({ insetResult, deleteResult, editedResult })
+        })
+
 
 
 
