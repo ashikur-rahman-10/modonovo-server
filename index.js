@@ -4,8 +4,8 @@ require('dotenv').config()
 const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const stripe = require("stripe")(process.env.SECRET_KEY);
-const app = express()
 
+const app = express()
 const port = process.env.PORT || 5000;
 
 // middleware
@@ -151,7 +151,7 @@ async function run() {
             // console.log(email);
 
             if (req.decoded.email !== email) {
-                res.send({ admin: false })
+                return res.send({ admin: false })
             }
 
             const query = { email: email }
@@ -165,7 +165,7 @@ async function run() {
 
 
             if (req.decoded.email !== email) {
-                res.send({ instructor: false })
+                return res.send({ instructor: false })
             }
 
             const query = { email: email }
@@ -254,6 +254,29 @@ async function run() {
             };
             const result = await classesCollections.updateOne(filter, updateDoc)
             res.send(result)
+        })
+
+        // Add feedback
+        app.patch('/classes/feedback/:id', VerifyJwt, VerifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) }
+            const feedback = req.body;
+            const updateDoc = {
+                $set: {
+                    feedback: feedback.message,
+                },
+            };
+
+            const result = await classesCollections.updateOne(filter, updateDoc)
+            res.send(result)
+        })
+
+        app.get('/classes/feedback/:id', VerifyJwt, VerifyInstructor, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) }
+            const seletedClass = await classesCollections.findOne(filter)
+            const feedback = { feedback: seletedClass.feedback }
+            res.send(feedback)
         })
 
         // Delete a single class
