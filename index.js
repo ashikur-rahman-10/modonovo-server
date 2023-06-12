@@ -175,6 +175,32 @@ async function run() {
             res.send({ result: result });
         })
 
+        // Get Popular Instructors
+
+        app.get('/instructors/popular', async (req, res) => {
+
+            const users = await usersCollections.find().toArray();
+            const classes = await classesCollections.find({ status: 'Approved' }).toArray();
+            const instructors = users.filter(user => user.role === 'Instructor');
+            const instructorData = instructors.map(instructor => {
+                const enrolledStudent = classes.reduce((sum, currentClass) => {
+                    if (currentClass.instructorEmail === instructor.email) {
+                        return sum + currentClass.enrolledStudent;
+                    }
+                    return sum;
+                }, 0);
+
+                return {
+                    ...instructor,
+                    enrolledStudent
+                };
+            });
+            const sortedInstructors = instructorData.sort((a, b) => b.enrolledStudent - a.enrolledStudent);
+            const popularInstructors = sortedInstructors.slice(0, 6);
+            res.send(popularInstructors);
+
+        })
+
         // Classes Api
 
         app.post('/classes', VerifyJwt, VerifyInstructor, async (req, res) => {
@@ -189,6 +215,14 @@ async function run() {
             res.send(result)
         })
 
+        // Get Populer Classes
+        app.get('/classes/top', async (req, res) => {
+            const classes = await classesCollections.find().toArray();
+            const sortedClasses = classes.sort((a, b) => -a.enrolledStudent + b.enrolledStudent);
+            const topClasses = sortedClasses.slice(0, 6);
+            res.send(topClasses);
+        })
+
         app.get('/classes/:email', VerifyJwt, async (req, res) => {
             const email = req.params.email;
             const filter = { instructorEmail: email }
@@ -196,6 +230,7 @@ async function run() {
             res.send(result)
 
         })
+
         // Get a single class
         app.get('/instructors/classes/:id', async (req, res) => {
             const id = req.params.id;
@@ -208,7 +243,6 @@ async function run() {
         app.patch('/instructors/classes/:id', VerifyJwt, VerifyInstructor, async (req, res) => {
             const id = req.params.id;
             const updatedClass = req.body
-            console.log(updatedClass);
             const filter = { _id: new ObjectId(id) }
             const updateDoc = {
                 $set: {
@@ -310,7 +344,7 @@ async function run() {
 
             const courseId = payment.courseId
             const course = await classesCollections.findOne({ _id: new ObjectId(courseId) })
-            console.log(course);
+
 
             const updateDoc = {
                 $set: {
@@ -323,6 +357,13 @@ async function run() {
 
 
             res.send({ insetResult, deleteResult, editedResult })
+        })
+
+        app.get('/payments/:email', async (req, res) => {
+            const email = req.params.email
+            const filter = { email: email }
+            const result = await paymentsCollections.find(filter).toArray()
+            res.send(result)
         })
 
 
